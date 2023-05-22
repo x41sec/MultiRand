@@ -1,4 +1,4 @@
-# random-impl
+# multirand
 
 Implements insecure, pseudo-random [linear congruential generators](https://en.wikipedia.org/wiki/Linear_congruential_generator) using parameters of various common `rand()` implementations.
 
@@ -6,7 +6,7 @@ Implements insecure, pseudo-random [linear congruential generators](https://en.w
 ## Usage
 
 ```shell
-random-impl --impl <IMPL> --start <VALUE> --end <VALUE> <--count <VALUE>|target>
+multirand --impl <IMPLS> --start <VALUE> --end <VALUE> <--count <VALUE>|target>
 ```
 
 Options:
@@ -33,28 +33,28 @@ Only glibc's `TYPE_0` implementation has been checked for producting the same ou
 
 ```shell
 # use seeds 1 and 2, call glibc rand() 2 times each
-$ random-impl -i glibc_type_0 --start 1 --end 2 --count 2 -t64 | xxd -p -c 8
+$ multirand -i glibc_type_0 --start 1 --end 2 --count 2 -t64 | xxd -p -c 8
 0000000041c67ea6
 00000000167eb0e7
 00000000038ccd13
 0000000059214b50
 
 # use seeds 1 and 2, call glibc rand() 2 times each, while casting outputs to 16 bit int
-$ random-impl -i glibc_type_0 --start 1 --end 2 --count 2 -t16 | xxd -p -c 2
+$ multirand -i glibc_type_0 --start 1 --end 2 --count 2 -t16 | xxd -p -c 2
 7ea6
 b0e7
 cd13
 4b50
 
 # use seeds 1 and 2, call glibc rand() 2 times each, while casting outputs to 8 bit int
-$ random-impl -i glibc_type_0 --start 1 --end 2 --count 2 -t8 | xxd -p -c 1
+$ multirand -i glibc_type_0 --start 1 --end 2 --count 2 -t8 | xxd -p -c 1
 a6
 e7
 13
 50
 
 # use seeds 1...10, call glibc rand() 16 times each, while casting outputs to 8 bit int
-$ random-impl -i glibc_type_0 --start 1 --end 10 --count 16 -t8 | xxd -p -c 16
+$ multirand -i glibc_type_0 --start 1 --end 10 --count 16 -t8 | xxd -p -c 16
 a6e7943d328300397edf2cf58afb1871
 1350494e6f7c055a8b6881266714bdb2
 80b9fe5fac750a7b98f1d657442d62f3
@@ -67,7 +67,7 @@ a1c687b4dd522320d99e7f4c95aa9b38
 7b98f1d657442d62f3b029ae4fdce5ba
 
 # find the seed for a certain value
-$ random-impl -i glibc_type_0 --start 1 --end 10 -t8 345dd2a3a0591effcc152a1bb891f6f7
+$ multirand -i glibc_type_0 --start 1 --end 10 -t8 345dd2a3a0591effcc152a1bb891f6f7
 Found! seed=7
 
 ```
