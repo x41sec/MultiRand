@@ -10,7 +10,7 @@ multirand --impl <IMPLS> --start <VALUE> --end <VALUE> <--count <VALUE>|target>
 ```
 
 Options:
-  - `-i`, `--impl <IMPL>`    LCG implementation to use
+  - `-i`, `--impl <IMPLS>`   LCG implementations to use (comma separated), or "all". See `--help` for full list.
   - `-s`, `--start <VALUE>`  First seed to use
   - `-e`, `--end <VALUE>`    Last seed to use
   - `-c`, `--count <VALUE>`  Number of iterations per seed
@@ -68,6 +68,6 @@ a1c687b4dd522320d99e7f4c95aa9b38
 
 # find the seed for a certain value
 $ multirand -i glibc_type_0 --start 1 --end 10 -t8 345dd2a3a0591effcc152a1bb891f6f7
-Found! seed=7
+Found! glibc_type_0 seed=7
 
 ```

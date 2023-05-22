@@ -4,6 +4,8 @@ use std::io::{self, Write};
 use clap::{arg, command, value_parser, ArgGroup};
 use hex;
 
+pub const IMPLS: &[&str] = &["ansic", "apple", "bcpl", "bcslib", "borland_c_lrand", "borland_c_rand", "c64_a", "c64_b", "c64_c", "cpp", "cray", "derive", "drand48", "glibc_old", "glibc_type_0", "lrand48", "maple", "minstd_16807", "minstd_48271", "mmix", "mrand48", "musl", "nag", "newlib_u16", "newlib", "numrecipes", "random0", "randu", "rtl_uniform", "simscript", "super_duper", "turbo_pascal", "urn12", "vbasic6", "zx81"];
+
 struct Lcg {
     seed: i64,
     modulo: i64,
@@ -158,7 +160,7 @@ fn run(imp: &str, from: u64, to: u64, count: usize, intsize: u8, target: Option<
         rng.srand(seed as i64);
         let out = fun(&mut rng, count, intsize as usize, &target);
         match target {
-            Some(ref target) if &out == target => println!("Found! seed={seed}"),
+            Some(ref target) if &out == target => println!("Found! {imp} seed={seed}"),
             Some(_) => (),
             _ => io::stdout().write_all(&out).unwrap(),
         }
@@ -167,7 +169,7 @@ fn run(imp: &str, from: u64, to: u64, count: usize, intsize: u8, target: Option<
 
 fn main() {
     let matches = command!()
-        .arg(arg!(-i --impl <IMPL> "LCG implementation to use").required(true))
+        .arg(arg!(-i --impl <IMPLS> "LCG implementations to use (comma separated), or \"all\". See --help for full list.").required(true).value_delimiter(',').long_help("LCG implementations to use (comma separated), or \"all\".\n".to_owned() + &IMPLS.join(", ")))
         .arg(
             arg!(-s --start <VALUE> "First seed to use")
                 .required(true)
@@ -196,7 +198,11 @@ fn main() {
         )
         .get_matches();
 
-    let imp = matches.get_one::<String>("impl").unwrap();
+    let mut impls: Vec<_> = matches
+        .get_many::<String>("impl")
+        .unwrap()
+        .map(|s| s.as_str())
+        .collect();
     let from = matches.get_one::<u64>("start").unwrap();
     let to = matches.get_one::<u64>("end").unwrap();
     let count = matches.get_one::<usize>("count").unwrap();
@@ -205,5 +211,11 @@ fn main() {
 
     let target = tgt.map(|tgt| hex::decode(tgt).expect("hex decoding failed!"));
 
-    run(imp, *from, *to, *count, *size, target);
+    if impls[0] == "all" {
+        impls = IMPLS.to_vec();
+    }
+
+    for imp in impls {
+        run(imp, *from, *to, *count, *size, target.clone());
+    }
 }
