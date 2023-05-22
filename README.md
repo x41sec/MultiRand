@@ -13,21 +13,22 @@ Options:
   - `-i`, `--impl <IMPLS>`   LCG implementations to use (comma separated), or "all". See `--help` for full list.
   - `-s`, `--start <VALUE>`  First seed to use
   - `-e`, `--end <VALUE>`    Last seed to use
+  - `-o`, `--offset <VALUE>` Initial, silent iterations per seed. Default is implementation specific.
   - `-c`, `--count <VALUE>`  Number of iterations per seed
   - `-t`, `--size <VALUE>`   Integer size [default: 64]
   - `[target]`               Value to search for (hex string)
 
-## Seeds
+## Seeds and Offset
 
 Common initial (uninitalized) seeds are `0`, `1`, or `12345` (ANSI C).  
 The NAG Library uses `123456789 * (2^32 + 1)`.  
 The current UNIX epoch is another common seed value.
 
-Note that some `srand()` implementations set the seed and subsequently call `rand()` internally, which advances the seed. To compensate for this, calculate the initial seed manually or increase the `--count` by 1 and discard the first output.
+Note that some `srand()` implementations set the seed and subsequently call `rand()` internally, which advances the seed. Use `--offset 1` to compensate for this. For some implementations that are known to do this, we have set the default offset to 1.
 
 ## Note
 
-Only glibc's `TYPE_0` implementation has been checked for producting the same output with `rand()`. Other parameters have been taken from [a Wikipedia list](https://en.wikipedia.org/wiki/Linear_congruential_generator#Parameters_in_common_use) and [a paper](http://citeseer.ist.psu.edu/viewdoc/download?doi=10.1.1.53.3686&rep=rep1&type=pdf), but not yet checked for implementation equality.
+Only glibc's `TYPE_0` implementation has been checked for producting the same output with `rand()`. Other parameters have been taken from [a Wikipedia list](https://en.wikipedia.org/wiki/Linear_congruential_generator#Parameters_in_common_use) and [a paper](http://citeseer.ist.psu.edu/viewdoc/download?doi=10.1.1.53.3686&rep=rep1&type=pdf), but not yet checked for implementation parity.
 
 ## Example
 
