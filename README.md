@@ -6,7 +6,7 @@ Implements insecure, pseudo-random [linear congruential generators](https://en.w
 ## Usage
 
 ```shell
-multirand --impl <IMPLS> --start <VALUE> --end <VALUE> <--count <VALUE>|target>
+multirand --impl <IMPLS> --start <VALUE> --end <VALUE> --count <VALUE> [--match FILE]
 ```
 
 Options:
@@ -14,9 +14,17 @@ Options:
   - `-s`, `--start <VALUE>`  First seed to use
   - `-e`, `--end <VALUE>`    Last seed to use
   - `-o`, `--offset <VALUE>` Initial, silent iterations per seed. Default is implementation specific.
-  - `-c`, `--count <VALUE>`  Number of iterations per seed
+  - `-c`, `--count <VALUE>`  Number of iterations to run per seed
   - `-t`, `--size <VALUE>`   Integer size [default: 64]
+  - `-m`, `--match <FILE>`   File with hex encoded matches to search for (whitespace separated)
   - `[target]`               Value to search for (hex string)
+
+## Implementations
+
+The following list of LCG implementations is currently supported:
+
+`ansic`, `apple`, `bcpl`, `bcslib`, `borland_c_lrand`, `borland_c_rand`, `c64_a`, `c64_b`, `c64_c`, `cpp`, `cray`, `derive`, `drand48`, `glibc_old`, `glibc_type_0`, `lrand48`, `maple`, `minstd_16807`, `minstd_48271`, `mmix`, `mrand48`, `musl`, `nag`, `newlib_u16`, `newlib`, `numrecipes`, `random0`, `randu`, `rtl_uniform`, `simscript`, `super_duper`, `turbo_pascal`, `urn12`, `vbasic6`, `zx81`
+
 
 ## Seeds and Offset
 
@@ -68,7 +76,7 @@ a1c687b4dd522320d99e7f4c95aa9b38
 7b98f1d657442d62f3b029ae4fdce5ba
 
 # find the seed for a certain value
-$ multirand -i glibc_type_0 --start 1 --end 10 -t8 345dd2a3a0591effcc152a1bb891f6f7
-Found! glibc_type_0 seed=7
-
+$ echo 62f3b029ae4fdce5 > matches.txt
+$ multirand -i glibc_type_0 --start 1 --end 10 --count 16 -t8 -m matches.txt
+Found! glibc_type_0 seed=10 bytes=7..15 (iteration=7..15) -> 0x62f3b029ae4fdce5
 ```

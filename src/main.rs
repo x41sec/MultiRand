@@ -1,7 +1,9 @@
-use std::env;
 use std::io::{self, Write};
+use std::path::PathBuf;
+use std::process;
+use std::{env, fs, str};
 
-use clap::{arg, command, value_parser, ArgGroup};
+use clap::{arg, command, value_parser};
 use hex;
 
 pub const IMPLS: &[&str] = &["ansic", "apple", "bcpl", "bcslib", "borland_c_lrand", "borland_c_rand", "c64_a", "c64_b", "c64_c", "cpp", "cray", "derive", "drand48", "glibc_old", "glibc_type_0", "lrand48", "maple", "minstd_16807", "minstd_48271", "mmix", "mrand48", "musl", "nag", "newlib_u16", "newlib", "numrecipes", "random0", "randu", "rtl_uniform", "simscript", "super_duper", "turbo_pascal", "urn12", "vbasic6", "zx81"];
@@ -131,23 +133,42 @@ impl DynInt for [u8; 8] {
     }
 }
 
-fn get_random_bytes<B: DynInt>(
+fn iterate<'n, B: DynInt>(
     rng: &mut Lcg,
-    count: usize,
-    intsize: usize,
-    target: &Option<Vec<u8>>,
-) -> Vec<u8> {
-    if let Some(target) = target {
-        rng.flat_map(B::to_bytes)
-            .zip(target)
-            .take_while(|(r, t)| r == *t)
-            .map(|(r, _t)| r)
-            .collect()
+    maxlen: usize,
+    needles: &'n Vec<Vec<u8>>,
+) -> (Option<&'n Vec<u8>>, usize) {
+    let rand = rng.flat_map(B::to_bytes).take(maxlen);
+    if needles.len() == 0 {
+        let out: Vec<u8> = rand.collect();
+        io::stdout().write_all(&out).unwrap();
     } else {
-        rng.flat_map(B::to_bytes)
-            .take(count * (intsize / 8))
-            .collect()
+        let mut matchcounts = vec![0; needles.len()]; // holds the number of matched chars for each needle
+        for (i, r) in rand.enumerate() {
+            let mut give_up = 0;
+            for (ns_i, mc) in matchcounts.iter_mut().enumerate() {
+                let needle = &needles[ns_i]; // &Vec<u8>
+                if needle.len() - *mc - 1 >= maxlen {
+                    give_up += 1; // needle is longer than remainder of maxlen, so it can't be in there
+                    continue;
+                }
+                if r == needle[*mc] {
+                    *mc += 1; // found a matching char
+                } else if r == needle[0] {
+                    *mc = 1; // edge case where we're setting the match count to 0, but index 0 of the needle matches the current char
+                } else {
+                    *mc = 0; // reset match count to 0
+                }
+                if *mc >= needle.len() {
+                    return (Some(needle), i + 1);
+                }
+            }
+            if give_up == needles.len() {
+                return (None, 0);
+            }
+        }
     }
+    return (None, 0);
 }
 
 fn run(
@@ -157,30 +178,43 @@ fn run(
     count: usize,
     offset: Option<usize>,
     intsize: u8,
-    target: Option<Vec<u8>>,
+    targets: &Vec<Vec<u8>>,
 ) {
     let mut rng = get_lcg(imp);
     let off = match offset {
         Some(x) => x,
         _ => rng.offset,
     };
+    let bytes = (intsize as usize) / 8;
 
     let fun = match intsize {
-        8 => get_random_bytes::<[u8; 1]>,
-        16 => get_random_bytes::<[u8; 2]>,
-        32 => get_random_bytes::<[u8; 4]>,
-        64 => get_random_bytes::<[u8; 8]>,
+        8 => iterate::<[u8; 1]>,
+        16 => iterate::<[u8; 2]>,
+        32 => iterate::<[u8; 4]>,
+        64 => iterate::<[u8; 8]>,
         _ => panic!("Invalid int size {intsize}"),
     };
 
     for seed in from..=to {
         rng.srand(seed as i64, off);
-        let out = fun(&mut rng, count, intsize as usize, &target);
-        match target {
-            Some(ref target) if &out == target => println!("Found! {imp} seed={seed}"),
-            Some(_) => (),
-            _ => io::stdout().write_all(&out).unwrap(),
+        match fun(&mut rng, count * bytes, &targets) {
+            (Some(ref res), i) => {
+                println!(
+                    "Found! {imp} seed={seed} bytes={}..{} (iteration={}..{}) -> 0x{}",
+                    off + i - res.len(),
+                    off + i,
+                    (off + i - res.len()) / bytes,
+                    (off + i) / bytes,
+                    hex::encode(res)
+                );
+                return;
+            }
+            _ => (),
         }
+    }
+
+    if targets.len() > 0 {
+        process::exit(1);
     }
 }
 
@@ -190,32 +224,31 @@ fn main() {
         .arg(
             arg!(-s --start <VALUE> "First seed to use")
                 .required(true)
-                .value_parser(value_parser!(u64)),
+                .value_parser(value_parser!(u64))
         )
         .arg(
             arg!(-e --end <VALUE> "Last seed to use")
                 .required(true)
-                .value_parser(value_parser!(u64)),
+                .value_parser(value_parser!(u64))
         )
         .arg(
             arg!(-o --offset <VALUE> "Initial, silent iterations per seed. Default is implementation specific.")
-                .value_parser(value_parser!(usize)),
+                .value_parser(value_parser!(usize))
         )
         .arg(
-            arg!(-c --count <VALUE> "Number of iterations to output per seed")
+            arg!(-c --count <VALUE> "Number of iterations to run per seed")
+                .required(true)
                 .value_parser(value_parser!(usize))
-                .default_value("0"),
         )
         .arg(
             arg!(-t --size <VALUE> "Integer size")
                 .value_parser(value_parser!(u8))
-                .default_value("64"),
+                .default_value("64")
         )
-        .arg(arg!([target] "hex value to search for"))
-        .group(
-            ArgGroup::new("vers")
-                .args(["count", "target"])
-                .required(true),
+        .arg(
+            arg!(-m --match <FILE> "File with hex encoded matches to search for (whitespace separated)")
+                .required(false)
+                .value_parser(value_parser!(PathBuf))
         )
         .get_matches();
 
@@ -229,15 +262,21 @@ fn main() {
     let count = matches.get_one::<usize>("count").unwrap();
     let off = matches.get_one::<usize>("offset");
     let size = matches.get_one::<u8>("size").unwrap();
-    let tgt = matches.get_one::<String>("target");
 
-    let target = tgt.map(|tgt| hex::decode(tgt).expect("hex decoding failed!"));
+    let input = match matches.get_one::<PathBuf>("match") {
+        Some(file_path) => fs::read_to_string(file_path).unwrap(),
+        _ => String::new(),
+    };
+    let targets = input
+        .split_whitespace()
+        .map(|s| hex::decode(s).expect("hex decoding failed!"))
+        .collect();
 
     if impls[0] == "all" {
         impls = IMPLS.to_vec();
     }
 
     for imp in impls {
-        run(imp, *from, *to, *count, off.copied(), *size, target.clone());
+        run(imp, *from, *to, *count, off.copied(), *size, &targets);
     }
 }
